@@ -19,6 +19,7 @@ namespace serialPortTransmitForNavigation
         private SerialPort serialPortCom1;// = new SerialPort();
         private SerialPort serialPortCom2;// = new SerialPort();
         private static bool IfTransmit = true;
+        private static bool IsAutoReplaceForward = false;
 
         StreamWriter ErrorInfo;//错误日志
         StreamWriter serialPort1Info;//串口1日志
@@ -26,6 +27,9 @@ namespace serialPortTransmitForNavigation
 
         bool isObsCanUse = false;
 
+
+        private static UInt16[] crc_tabccitt = new UInt16[256];
+        private static Boolean crc_tabccitt_init = false;
         public SerialPortForm()
         {
             InitializeComponent();
@@ -36,9 +40,12 @@ namespace serialPortTransmitForNavigation
         {
             string[] PortList = SerialPort.GetPortNames();
             //初始化串口1配置
-            foreach(string portName in PortList)
+            foreach (string portName in PortList)
                 cBox_portNameCom1.Items.Add(portName);
-            cBox_portNameCom1.SelectedIndex = 0;
+            if (PortList.Length > 0)
+                cBox_portNameCom1.SelectedIndex = 1;
+            else
+                cBox_portNameCom1.SelectedIndex = -1;
             cBox_baudRateCom1.SelectedIndex = cBox_baudRateCom1.Items.IndexOf("19200");
             cBox_dataBitsCom1.SelectedIndex = cBox_dataBitsCom1.Items.IndexOf("8");
             cBox_parityCom1.SelectedIndex = cBox_parityCom1.Items.IndexOf("无");
@@ -51,7 +58,7 @@ namespace serialPortTransmitForNavigation
             if (PortList.Length > 0)
                 cBox_portNameCom2.SelectedIndex = 1;
             else
-                cBox_portNameCom2.SelectedIndex = 0;
+                cBox_portNameCom2.SelectedIndex = -1;
             cBox_baudRateCom2.SelectedIndex = cBox_baudRateCom1.Items.IndexOf("19200");
             cBox_dataBitsCom2.SelectedIndex = cBox_dataBitsCom1.Items.IndexOf("8");
             cBox_parityCom2.SelectedIndex = cBox_parityCom1.Items.IndexOf("无");
@@ -70,7 +77,7 @@ namespace serialPortTransmitForNavigation
                 string dataBits = cBox_dataBitsCom1.Text;
                 string stopBits = cBox_stopBitsCom1.Text;
                 serialPortCom1 = new SerialPort();
-                if (serialPortCom2!=null && serialPortCom2.IsOpen && portName == serialPortCom2.PortName)
+                if (serialPortCom2 != null && serialPortCom2.IsOpen && portName == serialPortCom2.PortName)
                     MessageBox.Show("该端口已在Com2中打开");
                 else
                 {
@@ -104,7 +111,7 @@ namespace serialPortTransmitForNavigation
                 string dataBits = cBox_dataBitsCom2.Text;
                 string stopBits = cBox_stopBitsCom2.Text;
                 serialPortCom2 = new SerialPort();
-                if (serialPortCom1!=null && serialPortCom1.IsOpen && portName == serialPortCom1.PortName)
+                if (serialPortCom1 != null && serialPortCom1.IsOpen && portName == serialPortCom1.PortName)
                     MessageBox.Show("该端口已在Com1中打开");
                 else
                 {
@@ -140,7 +147,7 @@ namespace serialPortTransmitForNavigation
             {
                 Serial_Port.PortName = portName;
                 Serial_Port.BaudRate = int.Parse(baud_Rate);
-                switch(parity)
+                switch (parity)
                 {
                     case "无":
                         Serial_Port.Parity = Parity.None;
@@ -180,9 +187,9 @@ namespace serialPortTransmitForNavigation
                         Serial_Port.Parity = Parity.None;
                         break;
                 }
-                
+
                 Serial_Port.Handshake = Handshake.None;
-                Serial_Port.Open();             
+                Serial_Port.Open();
             }
             catch (Exception EX)
             {
@@ -191,13 +198,103 @@ namespace serialPortTransmitForNavigation
             }
             return info_error;
         }
+
+        private String CRC(byte[] x, int len) //CRC-16校验函数
+        {
+            byte[] temdata = new byte[2];
+            UInt16 crc = 0;
+            byte da;
+            int i = 0;
+            UInt16[] yu = { 0x0000,0x1021,0x2042,0x3063,0x4084,0x50a5,0x60c6,0x70e7,
+                            0x8108,0x9129,0xa14a,0xb16b,0xc18c,0xd1ad,0xe1ce,0xf1ef };
+            while (len-- != 0)
+            {
+                da = (byte)(((byte)(crc / 256)) / 16);
+                crc <<= 4;
+                crc ^= yu[da ^ x[i] / 16];
+                da = (byte)(((byte)(crc / 256)) / 16);
+                crc <<= 4;
+                crc ^= yu[da ^ x[i] & 0x0f];
+                i++;
+            }
+            temdata[0] = (byte)(crc & 0xFF);
+            temdata[1] = (byte)(crc >> 8);
+            return bytesToHexString(temdata, 2);
+        }
+        private UInt16 update_crc_sick(UInt16 crc, Byte c, Byte prev_byte)
+        {
+            UInt16 short_c, short_p;
+            UInt16 P_SICK = 0x8005;
+            short_c = (UInt16)(0x00ff & (UInt16)c);
+            short_p = (UInt16)((0x00ff & (UInt16)prev_byte) << 8);
+            if ((UInt16)(crc & 0x8000) > 0) crc = (UInt16)((crc << 1) ^ P_SICK);
+            else crc = (UInt16)(crc << 1);
+            crc &= 0xffff;
+            crc ^= (UInt16)(short_c | short_p);
+            return crc;
+        }
+
+        private UInt16 ComputeCRC16_SICK(byte[] buffer, int offset, int count)
+        {
+            UInt16 crc_sick = 0;
+            Byte prev_byte = 0;
+            for (Int32 i = 0; i < count; ++i)
+            {
+                crc_sick = update_crc_sick(crc_sick, buffer[offset + i], prev_byte);
+                prev_byte = buffer[offset + i];
+            }
+            UInt16 low_byte = (UInt16)((crc_sick & 0xff00) >> 8);
+            UInt16 high_byte = (UInt16)((crc_sick & 0x00ff) << 8);
+            crc_sick = (UInt16)(low_byte | high_byte);
+            return crc_sick;
+        }
+        private static void init_crcccitt_tab()
+        {
+            int i, j;
+            UInt16 crc, c;
+            UInt16 P_CCITT = 0x1021;
+           
+            for (i = 0; i < 256; i++)
+            {
+                crc = 0;
+                c = (UInt16)(((UInt16)i) << 8);
+                for (j = 0; j < 8; j++)
+                {
+                    if ((UInt16)((crc ^ c) & 0x8000) > 0) crc = (UInt16)((crc << 1) ^ P_CCITT);
+                    else crc = (UInt16)(crc << 1);
+                    c = (UInt16)(c << 1);
+                }
+                crc_tabccitt[i] = crc;
+            }
+            crc_tabccitt_init = true;
+        }
+        private UInt16 update_crc_ccitt(UInt16 crc, Byte c)
+        {
+            UInt16 tmp, short_c;
+            short_c = (UInt16)(0x00ff & c);
+            if (!crc_tabccitt_init) init_crcccitt_tab();
+            tmp = (UInt16)((crc >> 8) ^ short_c);
+            crc = (UInt16)((crc << 8) ^ crc_tabccitt[tmp]);
+            return crc;
+        }
+
+        private UInt16 ComputeCRC16_CCITT_FFFF(byte[] buffer, int offset, int count)
+        {
+            UInt16 crc_ccitt_ffff = 0xFFFF;
+            for (Int32 i = 0; i < count; ++i)
+            {
+                crc_ccitt_ffff = update_crc_ccitt(crc_ccitt_ffff, buffer[offset + i]);
+            }
+            return crc_ccitt_ffff;
+        }
+
         /// <summary>
         /// 监听串口数据线程
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
         /// 接收字符集有System.Text.ASCIIEncoding、System.Text.UTF8Encoding、System.Text.UTF32Encoding、System.Text.UnicodeEncoding、Windows
-        //     单字节编码之一或 Windows 双字节编码之一。
+            //     单字节编码之一或 Windows 双字节编码之一。
         private void SerialPortCom1_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
             try
@@ -205,6 +302,7 @@ namespace serialPortTransmitForNavigation
                 if (serialPortCom1.IsOpen)
                 {
                     byte[] readBuffer = new byte[serialPortCom1.ReadBufferSize + 1];
+                    byte[] sendBuffer = new byte[serialPortCom1.ReadBufferSize + 1];
                     try
                     {
                         int count = serialPortCom1.Read(readBuffer, 0, serialPortCom1.ReadBufferSize);        //读取串口数据(监听)
@@ -215,6 +313,7 @@ namespace serialPortTransmitForNavigation
                         {
                             //将返回值byte数组转换为string类型数据
                             String result = bytesToHexString(readBuffer, count);
+                            String resultFinal;
 
                             checkDirectoryFile();
                             serialPort1Info.WriteLine(DateTime.Now.ToString() + "接收数据:" + result);
@@ -222,20 +321,29 @@ namespace serialPortTransmitForNavigation
 
                             //this.BeginInvoke(new System.Threading.ThreadStart(delegate()
                             //{
-                                AddRunningInfo(DateTime.Now.ToString() + "接收数据:" + result, listBox_showCom1);         //对控件进行赋值
+                            AddRunningInfo(DateTime.Now.ToString() + "接收数据:" + result, listBox_showCom1);         //对控件进行赋值
                             //}));
                             if (serialPortCom2.IsOpen && IfTransmit)//如果另一个串口开启则进行数据转发
                             {
-                                serialPortCom2.Write(readBuffer, 0, count);
+                                if (IsAutoReplaceForward && result.Contains(FindBox1.Text + FindBox2.Text + FindBox3.Text + FindBox4.Text + FindBox5.Text + FindBox6.Text) && result.Contains(FindBox8.Text + FindBox9.Text + FindBox10.Text + FindBox11.Text + FindBox12.Text + FindBox13.Text))
+                                {
+                                    String rplceStr = RplceBox1.Text + RplceBox2.Text + RplceBox3.Text + RplceBox4.Text + RplceBox5.Text + RplceBox6.Text + result[7] + RplceBox8.Text;
+                                    String crc = CRC(Convert.FromBase64String(rplceStr), Convert.FromBase64String(rplceStr).Length);
+                                    sendBuffer = Convert.FromBase64String(rplceStr + crc);
+                                }
+                                else
+                                    sendBuffer = Convert.FromBase64String(result);
+
+                                serialPortCom2.Write(sendBuffer, 0, count);
                                 //this.BeginInvoke(new System.Threading.ThreadStart(delegate()
                                 //{
-                                    AddRunningInfo(DateTime.Now.ToString() + "发送数据:" + result, listBox_showCom2);         //对控件进行赋值
+                                AddRunningInfo(DateTime.Now.ToString() + "发送数据:" + sendBuffer, listBox_showCom2);         //对控件进行赋值
                                 //}));
-                                serialPort2Info.WriteLine(DateTime.Now.ToString() + "发送数据:" + result);
+                                serialPort2Info.WriteLine(DateTime.Now.ToString() + "发送数据:" + sendBuffer);
                                 serialPort2Info.Flush();
                             }
                         }
-                        
+
                     }
                     catch (TimeoutException) { }
                 }
@@ -277,15 +385,15 @@ namespace serialPortTransmitForNavigation
                             serialPort2Info.Flush();
                             //this.BeginInvoke(new System.Threading.ThreadStart(delegate()
                             //{
-                                AddRunningInfo(DateTime.Now.ToString() + "接收数据:" + result,listBox_showCom2);         //对控件进行赋值
+                            AddRunningInfo(DateTime.Now.ToString() + "接收数据:" + result, listBox_showCom2);         //对控件进行赋值
                             //}));
                             if (serialPortCom1.IsOpen && IfTransmit)//如果另一个串口开启则进行数据转发
                             {
                                 serialPortCom1.Write(readBuffer, 0, count);
                                 //this.BeginInvoke(new System.Threading.ThreadStart(delegate()
                                 //{
-                                    AddRunningInfo(DateTime.Now.ToString() + "发送数据:" + result,listBox_showCom1);         //对控件进行赋值
-                               // }));
+                                AddRunningInfo(DateTime.Now.ToString() + "发送数据:" + result, listBox_showCom1);         //对控件进行赋值
+                                                                                                                      // }));
                                 serialPort1Info.WriteLine(DateTime.Now.ToString() + "发送数据:" + result);
                                 serialPort1Info.Flush();
                             }
@@ -309,7 +417,7 @@ namespace serialPortTransmitForNavigation
         /// </summary>
         /// <param name="bArr"></param>
         /// <returns></returns>
-        private String bytesToHexString(byte[] bArr,int count)
+        private String bytesToHexString(byte[] bArr, int count)
         {
             string result = string.Empty;
             for (int i = 0; i < count; i++)//逐字节变为16进制字符，以%隔开
@@ -318,7 +426,21 @@ namespace serialPortTransmitForNavigation
             }
             return result;
         }
-
+        /// <summary>
+        /// 字符串转10进制字节数组
+        /// </summary>
+        /// <param name="hexString"></param>
+        /// <returns></returns>
+        private static byte[] strToDecByte(string hexString)
+        {
+            hexString = hexString.Replace(" ", "");
+            if ((hexString.Length % 2) != 0)
+               hexString += " ";
+            byte[] returnBytes = new byte[hexString.Length / 2];
+            for (int i = 0; i < returnBytes.Length; i++)
+                returnBytes[i] = Convert.ToByte(hexString.Substring(i * 2, 2),16);
+            return returnBytes;
+        }
         /// <summary>
         /// 向串口发送请求信息
         /// </summary>
@@ -348,7 +470,7 @@ namespace serialPortTransmitForNavigation
             }
         }
 
-        private void AddRunningInfo(string message,ListBox listBoxName)
+        private void AddRunningInfo(string message, ListBox listBoxName)
         {
             this.Invoke((EventHandler)delegate
             {
@@ -369,11 +491,13 @@ namespace serialPortTransmitForNavigation
             if (btn_OpenOrCloseTransmit.Text == "关闭")
             {
                 IfTransmit = false;
+                label24.Text = "关闭";
                 btn_OpenOrCloseTransmit.Text = "打开";
             }
             else if (btn_OpenOrCloseTransmit.Text == "打开")
             {
                 IfTransmit = true;
+                label24.Text = "打开";
                 btn_OpenOrCloseTransmit.Text = "关闭";
             }
         }
@@ -392,7 +516,7 @@ namespace serialPortTransmitForNavigation
             serialPort1Info.Flush();
             //this.BeginInvoke(new System.Threading.ThreadStart(delegate()
             //{
-                AddRunningInfo(DateTime.Now.ToString() + "发送数据:" + Str_Send, listBox_showCom1);         //对控件进行赋值
+            AddRunningInfo(DateTime.Now.ToString() + "发送数据:" + Str_Send, listBox_showCom1);         //对控件进行赋值
             //}));
         }
 
@@ -410,7 +534,7 @@ namespace serialPortTransmitForNavigation
             serialPort2Info.Flush();
             //this.BeginInvoke(new System.Threading.ThreadStart(delegate()
             //{
-                AddRunningInfo(DateTime.Now.ToString() + "发送数据:" + Str_Send, listBox_showCom2);         //对控件进行赋值
+            AddRunningInfo(DateTime.Now.ToString() + "发送数据:" + Str_Send, listBox_showCom2);         //对控件进行赋值
             //}));
         }
         private void checkDirectoryFile()
@@ -450,5 +574,29 @@ namespace serialPortTransmitForNavigation
                 serialPort2Info.Close();
         }
 
+        private void btn_AutoReplaceForward_Click(object sender, EventArgs e)
+        {
+            if (btn_AutoReplaceForward.Text == "打开匹配替换")
+            {
+                IsAutoReplaceForward = true;
+                label22.Text = "打开";
+                btn_AutoReplaceForward.Text = "关闭匹配替换";
+            }
+            else if (btn_AutoReplaceForward.Text == "关闭匹配替换")
+            {
+                IsAutoReplaceForward = false;
+                label22.Text = "关闭";
+                btn_AutoReplaceForward.Text = "打开匹配替换";
+            }
+        }
+        private void btn_CRC_Click(object sender, EventArgs e)
+        {
+            byte[] tempBytes = strToDecByte(textBox1.Text);
+            UInt16 tempCrc = ComputeCRC16_SICK(tempBytes, 0, tempBytes.Length);
+            UInt16 tempCrc2 = ComputeCRC16_CCITT_FFFF(tempBytes, 0, tempBytes.Length);
+            label8.Text = Convert.ToString(tempCrc, 16).ToUpper();
+            label27.Text = Convert.ToString(tempCrc2, 16).ToUpper();
+        }
     }
+
 }
