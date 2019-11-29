@@ -105,6 +105,10 @@
             this.label8 = new System.Windows.Forms.Label();
             this.label26 = new System.Windows.Forms.Label();
             this.label27 = new System.Windows.Forms.Label();
+            this.label30 = new System.Windows.Forms.Label();
+            this.label28 = new System.Windows.Forms.Label();
+            this.label29 = new System.Windows.Forms.Label();
+            this.label31 = new System.Windows.Forms.Label();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
             this.groupBox4.SuspendLayout();
@@ -924,10 +928,10 @@
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(1713, 961);
+            this.button1.Location = new System.Drawing.Point(1797, 956);
             this.button1.Margin = new System.Windows.Forms.Padding(4);
             this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(181, 41);
+            this.button1.Size = new System.Drawing.Size(173, 41);
             this.button1.TabIndex = 40;
             this.button1.Text = "计算CRC16值";
             this.button1.UseVisualStyleBackColor = true;
@@ -935,7 +939,7 @@
             // 
             // textBox1
             // 
-            this.textBox1.Location = new System.Drawing.Point(746, 974);
+            this.textBox1.Location = new System.Drawing.Point(234, 969);
             this.textBox1.Margin = new System.Windows.Forms.Padding(4);
             this.textBox1.Name = "textBox1";
             this.textBox1.Size = new System.Drawing.Size(611, 28);
@@ -945,18 +949,18 @@
             // 
             this.label8.AutoSize = true;
             this.label8.Font = new System.Drawing.Font("宋体", 14F);
-            this.label8.Location = new System.Drawing.Point(1569, 969);
+            this.label8.Location = new System.Drawing.Point(1679, 969);
             this.label8.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(96, 28);
+            this.label8.Size = new System.Drawing.Size(68, 28);
             this.label8.TabIndex = 40;
-            this.label8.Text = "校验位";
+            this.label8.Text = "0000";
             // 
             // label26
             // 
             this.label26.AutoSize = true;
             this.label26.Font = new System.Drawing.Font("宋体", 14F);
-            this.label26.Location = new System.Drawing.Point(551, 974);
+            this.label26.Location = new System.Drawing.Point(39, 969);
             this.label26.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label26.Name = "label26";
             this.label26.Size = new System.Drawing.Size(166, 28);
@@ -967,18 +971,66 @@
             // 
             this.label27.AutoSize = true;
             this.label27.Font = new System.Drawing.Font("宋体", 14F);
-            this.label27.Location = new System.Drawing.Point(1415, 969);
+            this.label27.Location = new System.Drawing.Point(1352, 969);
             this.label27.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label27.Name = "label27";
-            this.label27.Size = new System.Drawing.Size(96, 28);
+            this.label27.Size = new System.Drawing.Size(68, 28);
             this.label27.TabIndex = 42;
-            this.label27.Text = "校验位";
+            this.label27.Text = "0000";
+            // 
+            // label30
+            // 
+            this.label30.AutoSize = true;
+            this.label30.Font = new System.Drawing.Font("宋体", 14F);
+            this.label30.Location = new System.Drawing.Point(1037, 969);
+            this.label30.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label30.Name = "label30";
+            this.label30.Size = new System.Drawing.Size(68, 28);
+            this.label30.TabIndex = 45;
+            this.label30.Text = "0000";
+            // 
+            // label28
+            // 
+            this.label28.AutoSize = true;
+            this.label28.Font = new System.Drawing.Font("宋体", 14F);
+            this.label28.Location = new System.Drawing.Point(877, 969);
+            this.label28.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label28.Name = "label28";
+            this.label28.Size = new System.Drawing.Size(152, 28);
+            this.label28.TabIndex = 46;
+            this.label28.Text = "CRC16/x25:";
+            // 
+            // label29
+            // 
+            this.label29.AutoSize = true;
+            this.label29.Font = new System.Drawing.Font("宋体", 14F);
+            this.label29.Location = new System.Drawing.Point(1178, 969);
+            this.label29.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label29.Name = "label29";
+            this.label29.Size = new System.Drawing.Size(166, 28);
+            this.label29.TabIndex = 47;
+            this.label29.Text = "CRC16/Sick:";
+            // 
+            // label31
+            // 
+            this.label31.AutoSize = true;
+            this.label31.Font = new System.Drawing.Font("宋体", 14F);
+            this.label31.Location = new System.Drawing.Point(1491, 969);
+            this.label31.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label31.Name = "label31";
+            this.label31.Size = new System.Drawing.Size(180, 28);
+            this.label31.TabIndex = 48;
+            this.label31.Text = "CRC16/CCITT:";
             // 
             // SerialPortForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 18F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(2564, 1022);
+            this.Controls.Add(this.label31);
+            this.Controls.Add(this.label29);
+            this.Controls.Add(this.label28);
+            this.Controls.Add(this.label30);
             this.Controls.Add(this.label27);
             this.Controls.Add(this.label26);
             this.Controls.Add(this.label8);
@@ -1092,6 +1144,10 @@
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.Label label26;
         private System.Windows.Forms.Label label27;
+        private System.Windows.Forms.Label label30;
+        private System.Windows.Forms.Label label28;
+        private System.Windows.Forms.Label label29;
+        private System.Windows.Forms.Label label31;
     }
 }
 

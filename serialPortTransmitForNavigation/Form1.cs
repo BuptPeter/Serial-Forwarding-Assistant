@@ -14,8 +14,12 @@ using System.IO;
 
 namespace serialPortTransmitForNavigation
 {
+
     public partial class SerialPortForm : Form
     {
+        [System.Runtime.InteropServices.DllImport("crc16.dll")]
+        private static extern UInt16 crc16_x25(byte[] data,int l);
+
         private SerialPort serialPortCom1;// = new SerialPort();
         private SerialPort serialPortCom2;// = new SerialPort();
         private static bool IfTransmit = true;
@@ -288,6 +292,7 @@ namespace serialPortTransmitForNavigation
             return crc_ccitt_ffff;
         }
 
+
         /// <summary>
         /// 监听串口数据线程
         /// </summary>
@@ -326,10 +331,11 @@ namespace serialPortTransmitForNavigation
                             if (serialPortCom2.IsOpen && IfTransmit)//如果另一个串口开启则进行数据转发
                             {
                                 if (IsAutoReplaceForward && result.Contains(FindBox1.Text + FindBox2.Text + FindBox3.Text + FindBox4.Text + FindBox5.Text + FindBox6.Text) && result.Contains(FindBox8.Text + FindBox9.Text + FindBox10.Text + FindBox11.Text + FindBox12.Text + FindBox13.Text))
-                                {
+                                {//如果匹配开关的打开且该数据包匹配上
                                     String rplceStr = RplceBox1.Text + RplceBox2.Text + RplceBox3.Text + RplceBox4.Text + RplceBox5.Text + RplceBox6.Text + result[7] + RplceBox8.Text;
-                                    String crc = CRC(Convert.FromBase64String(rplceStr), Convert.FromBase64String(rplceStr).Length);
-                                    sendBuffer = Convert.FromBase64String(rplceStr + crc);
+                                    //String crc = CRC(Convert.FromBase64String(rplceStr), Convert.FromBase64String(rplceStr).Length);
+                                    UInt16 tempCrc = crc16_x25(strToDecByte(rplceStr), strToDecByte(rplceStr).Length);
+                                    sendBuffer = Convert.FromBase64String(rplceStr + Convert.ToString(tempCrc, 16));
                                 }
                                 else
                                     sendBuffer = Convert.FromBase64String(result);
@@ -592,10 +598,12 @@ namespace serialPortTransmitForNavigation
         private void btn_CRC_Click(object sender, EventArgs e)
         {
             byte[] tempBytes = strToDecByte(textBox1.Text);
-            UInt16 tempCrc = ComputeCRC16_SICK(tempBytes, 0, tempBytes.Length);
-            UInt16 tempCrc2 = ComputeCRC16_CCITT_FFFF(tempBytes, 0, tempBytes.Length);
-            label8.Text = Convert.ToString(tempCrc, 16).ToUpper();
+            UInt16 tempCrc2 = ComputeCRC16_SICK(tempBytes, 0, tempBytes.Length);
+            UInt16 tempCrc = crc16_x25(tempBytes, tempBytes.Length);
+            UInt16 tempCrc3 = ComputeCRC16_CCITT_FFFF(tempBytes, 0, tempBytes.Length);
+            label8.Text = Convert.ToString(tempCrc3, 16).ToUpper();
             label27.Text = Convert.ToString(tempCrc2, 16).ToUpper();
+            label30.Text = Convert.ToString(tempCrc, 16).ToUpper();
         }
     }
 
